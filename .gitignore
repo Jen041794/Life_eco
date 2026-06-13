@@ -1,0 +1,26 @@
+# 祕密設定（一定不能進 git）
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 虛擬環境
+venv/
+.venv/
+
+# Django
+*.log
+*.sqlite3
+
+# 本機 MySQL 資料目錄（若放在專案內時）
+mysql-data/
+
+# 使用者上傳的檔案（商品圖片等）
+media/
+
+# 編輯器
+.vscode/
+.idea/
+.DS_Store

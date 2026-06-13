@@ -1,0 +1,5 @@
+/* 交給 Bootstrap 控制樣式，這裡只留最基本的設定 */
+body {
+  margin: 0;
+  font-family: system-ui, 'Segoe UI', 'Microsoft JhengHei', Roboto, sans-serif;
+}
