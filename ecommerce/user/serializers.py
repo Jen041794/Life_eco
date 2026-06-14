@@ -10,6 +10,14 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email']
 
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    """顧客端：使用者讀寫自己的個人資料（電話、地址）。"""
+
+    class Meta:
+        model = UserProfile
+        fields = ['phone', 'address']
+
+
 class AdminUserSerializer(serializers.ModelSerializer):
     """後台用：多回傳管理欄位（啟用狀態、是否管理員、註冊時間）。"""
 

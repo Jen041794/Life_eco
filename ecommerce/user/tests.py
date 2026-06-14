@@ -86,6 +86,57 @@ class UserViewSetAPITests(APITestCase):
         self.assertIn("is_active", get_items(res)[0])
 
 
+class MyProfileAPITests(APITestCase):
+    """顧客端：讀寫自己的個人資料（電話、地址）。"""
+
+    def setUp(self):
+        # 註冊路徑會一併建立 UserProfile；這裡直接走 API 確保 profile 存在
+        self.client.post(
+            "/api/user/register/",
+            {"username": "alice", "email": "a@test.com", "password": "test12345"},
+            format="json",
+        )
+        self.alice = User.objects.get(username="alice")
+
+    def test_profile_requires_auth(self):
+        res = self.client.get("/api/user/profile/")
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_own_profile(self):
+        self.client.force_authenticate(self.alice)
+        res = self.client.get("/api/user/profile/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["phone"], "")
+        self.assertEqual(res.data["address"], "")
+
+    def test_update_own_profile(self):
+        self.client.force_authenticate(self.alice)
+        res = self.client.patch(
+            "/api/user/profile/",
+            {"phone": "0912345678", "address": "台北市信義區"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.alice.userprofile.refresh_from_db()
+        self.assertEqual(self.alice.userprofile.phone, "0912345678")
+        self.assertEqual(self.alice.userprofile.address, "台北市信義區")
+
+    def test_cannot_touch_other_users_profile(self):
+        # bob 登入時，profile 端點只會操作到 bob 自己的，不會碰到 alice
+        self.client.post(
+            "/api/user/register/",
+            {"username": "bob", "email": "b@test.com", "password": "test12345"},
+            format="json",
+        )
+        bob = User.objects.get(username="bob")
+        self.client.force_authenticate(bob)
+        self.client.patch(
+            "/api/user/profile/", {"phone": "0900000000"}, format="json"
+        )
+        self.alice.userprofile.refresh_from_db()
+        self.assertEqual(self.alice.userprofile.phone, "")  # alice 不受影響
+
+
 class UserAdminActionTests(APITestCase):
     """後台：啟用 / 停用帳號。"""
 

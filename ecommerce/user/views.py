@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 
 from .serializers import (
     UserSerializer,
+    UserProfileSerializer,
     AdminUserSerializer,
     AdminUserUpdateSerializer,
     RegisterSerializer,
@@ -73,6 +74,17 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
             )
         serializer.save()
         return Response(AdminUserSerializer(target).data)
+
+
+# 個人資料 API：登入者讀寫「自己」的 profile（電話、地址），不帶 id 避免越權
+class MyProfileView(generics.RetrieveUpdateAPIView):
+    """GET / PATCH /api/user/profile/ — 取得或更新目前登入者自己的個人資料。"""
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        # 固定回傳自己的 profile，從根本上保證碰不到別人的資料
+        return self.request.user.userprofile
 
 
 # 註冊 API：任何人都可呼叫
