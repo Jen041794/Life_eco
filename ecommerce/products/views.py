@@ -22,6 +22,8 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [IsAdminOrReadOnly]
+    # 分類用於下拉選單與管理頁，需一次回全部，不套用全域分頁
+    pagination_class = None
 
 
 class ProductViewSet(viewsets.ModelViewSet):

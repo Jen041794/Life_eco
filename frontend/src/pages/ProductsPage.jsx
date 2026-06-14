@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Table, Button, Spinner, Alert, Form, InputGroup, Image } from 'react-bootstrap'
+import { Table, Button, Spinner, Alert, Form, InputGroup, Image, Badge } from 'react-bootstrap'
 import {
   useGetProductsQuery,
   useDeleteProductMutation,
+  useUpdateProductMutation,
 } from '../features/api/apiSlice'
 import ProductFormModal from '../components/ProductFormModal'
 import { formatApiError } from '../utils/formatError'
@@ -16,6 +17,7 @@ export default function ProductsPage() {
 
   const { data, isLoading, isError, isFetching } = useGetProductsQuery({ page, search })
   const [deleteProduct] = useDeleteProductMutation()
+  const [updateProduct] = useUpdateProductMutation()
 
   const openCreate = () => { setEditing(null); setModalShow(true) }
   const openEdit = (p) => { setEditing(p); setModalShow(true) }
@@ -24,6 +26,17 @@ export default function ProductsPage() {
     if (!window.confirm(`確定要刪除「${p.name}」嗎？`)) return
     try {
       await deleteProduct(p.id).unwrap()
+    } catch (err) {
+      alert(formatApiError(err))
+    }
+  }
+
+  // 列上的快速上/下架：只送 is_active 一個欄位
+  const toggleActive = async (p) => {
+    const fd = new FormData()
+    fd.append('is_active', p.is_active ? 'false' : 'true')
+    try {
+      await updateProduct({ id: p.id, formData: fd }).unwrap()
     } catch (err) {
       alert(formatApiError(err))
     }
@@ -63,13 +76,14 @@ export default function ProductsPage() {
       <Table hover responsive className="align-middle bg-white shadow-sm">
         <thead className="table-light">
           <tr>
-            <th>#</th><th style={{ width: 64 }}>圖片</th><th>名稱</th><th className="text-end">價格</th>
-            <th className="text-end">庫存</th><th style={{ width: 140 }}>操作</th>
+            <th>#</th><th style={{ width: 64 }}>圖片</th><th>名稱</th><th>分類</th>
+            <th>狀態</th><th className="text-end">價格</th>
+            <th className="text-end">庫存</th><th style={{ width: 230 }}>操作</th>
           </tr>
         </thead>
         <tbody>
           {products.length === 0 ? (
-            <tr><td colSpan={6} className="text-center text-muted py-4">沒有商品</td></tr>
+            <tr><td colSpan={8} className="text-center text-muted py-4">沒有商品</td></tr>
           ) : (
             products.map((p) => (
               <tr key={p.id}>
@@ -82,11 +96,29 @@ export default function ProductsPage() {
                   )}
                 </td>
                 <td>{p.name}</td>
+                <td>
+                  {p.category_name
+                    ? <Badge bg="info" className="fw-normal">{p.category_name}</Badge>
+                    : <span className="text-muted small">—</span>}
+                </td>
+                <td>
+                  {p.is_active
+                    ? <Badge bg="success" className="fw-normal">上架中</Badge>
+                    : <Badge bg="secondary" className="fw-normal">已下架</Badge>}
+                </td>
                 <td className="text-end">${p.price}</td>
                 <td className="text-end">
                   <span className={p.stock < 5 ? 'text-danger fw-bold' : ''}>{p.stock}</span>
                 </td>
                 <td>
+                  <Button
+                    size="sm"
+                    variant={p.is_active ? 'outline-secondary' : 'outline-success'}
+                    className="me-2"
+                    onClick={() => toggleActive(p)}
+                  >
+                    {p.is_active ? '下架' : '上架'}
+                  </Button>
                   <Button size="sm" variant="outline-primary" className="me-2" onClick={() => openEdit(p)}>編輯</Button>
                   <Button size="sm" variant="outline-danger" onClick={() => handleDelete(p)}>刪除</Button>
                 </td>

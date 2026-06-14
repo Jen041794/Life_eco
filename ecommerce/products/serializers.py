@@ -33,3 +33,10 @@ class ProductSerializer(serializers.ModelSerializer):
             'category', 'category_name', 'is_active',
             'created_at', 'images',
         ]
+
+    def to_internal_value(self, data):
+        # 前端用 multipart 表單清空分類時會送空字串，轉成 None 才不會被當成無效 pk
+        if hasattr(data, "get") and data.get("category") == "":
+            data = data.copy()  # QueryDict 預設唯讀，copy 後才能改
+            data["category"] = None
+        return super().to_internal_value(data)

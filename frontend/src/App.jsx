@@ -4,6 +4,7 @@ import AdminLayout from './components/AdminLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import ProductsPage from './pages/ProductsPage'
+import CategoriesPage from './pages/CategoriesPage'
 import OrdersPage from './pages/OrdersPage'
 import UsersPage from './pages/UsersPage'
 
@@ -16,6 +17,7 @@ export default function App() {
         <Route element={<AdminLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/products" element={<ProductsPage />} />
+          <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/users" element={<UsersPage />} />
         </Route>

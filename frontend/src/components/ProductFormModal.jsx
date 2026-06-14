@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Modal, Form, Button, Alert, Image } from 'react-bootstrap'
-import { useAddProductMutation, useUpdateProductMutation } from '../features/api/apiSlice'
+import {
+  useAddProductMutation,
+  useUpdateProductMutation,
+  useGetCategoriesQuery,
+} from '../features/api/apiSlice'
 import { formatApiError } from '../utils/formatError'
 
-const empty = { name: '', description: '', price: '', stock: 0 }
+const empty = { name: '', description: '', price: '', stock: 0, category: '', is_active: true }
 const MAX_IMAGES = 3
 
 export default function ProductFormModal({ show, onHide, product }) {
@@ -13,6 +17,7 @@ export default function ProductFormModal({ show, onHide, product }) {
   const [error, setError] = useState('')
   const [addProduct, { isLoading: adding }] = useAddProductMutation()
   const [updateProduct, { isLoading: updating }] = useUpdateProductMutation()
+  const { data: categories = [] } = useGetCategoriesQuery()
 
   useEffect(() => {
     if (show) {
@@ -22,6 +27,8 @@ export default function ProductFormModal({ show, onHide, product }) {
             description: product.description || '',
             price: product.price,
             stock: product.stock,
+            category: product.category ?? '',
+            is_active: product.is_active,
           }
         : empty)
       setFiles([])
@@ -29,7 +36,10 @@ export default function ProductFormModal({ show, onHide, product }) {
     }
   }, [show, product])
 
-  const change = (e) => setForm({ ...form, [e.target.name]: e.target.value })
+  const change = (e) => {
+    const { name, type, value, checked } = e.target
+    setForm({ ...form, [name]: type === 'checkbox' ? checked : value })
+  }
 
   const onFiles = (e) => {
     const selected = Array.from(e.target.files)
@@ -51,6 +61,8 @@ export default function ProductFormModal({ show, onHide, product }) {
     fd.append('description', form.description)
     fd.append('price', form.price)
     fd.append('stock', String(Number(form.stock)))
+    fd.append('category', form.category)  // 空字串＝無分類，後端會轉成 null
+    fd.append('is_active', form.is_active ? 'true' : 'false')
     files.forEach((f) => fd.append('images', f))
 
     try {
@@ -88,6 +100,28 @@ export default function ProductFormModal({ show, onHide, product }) {
             <Form.Group className="mb-3 col-6">
               <Form.Label>庫存</Form.Label>
               <Form.Control name="stock" type="number" min="0" value={form.stock} onChange={change} required />
+            </Form.Group>
+          </div>
+
+          <div className="row align-items-center">
+            <Form.Group className="mb-3 col-7">
+              <Form.Label>分類</Form.Label>
+              <Form.Select name="category" value={form.category} onChange={change}>
+                <option value="">（無分類）</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="mb-3 col-5">
+              <Form.Label>上架狀態</Form.Label>
+              <Form.Check
+                type="switch"
+                name="is_active"
+                checked={form.is_active}
+                onChange={change}
+                label={form.is_active ? '上架中（前台可見）' : '已下架（前台隱藏）'}
+              />
             </Form.Group>
           </div>
 

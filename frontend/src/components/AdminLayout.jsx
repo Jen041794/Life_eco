@@ -6,6 +6,7 @@ import { logout, selectCurrentUser } from '../features/auth/authSlice'
 const menu = [
   { to: '/', label: '儀表板', end: true },
   { to: '/products', label: '商品管理' },
+  { to: '/categories', label: '分類管理' },
   { to: '/orders', label: '訂單管理' },
   { to: '/users', label: '會員管理' },
 ]

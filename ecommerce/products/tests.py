@@ -98,6 +98,11 @@ class CategoryAPITests(APITestCase):
         names = [item["name"] for item in get_items(res)]
         self.assertIn("3C", names)
 
+    def test_list_is_not_paginated(self):
+        # 分類給下拉選單/管理頁用，要一次回全部純陣列（前端直接 map，不是 {results:[]}）
+        res = self.client.get("/api/categories/")
+        self.assertIsInstance(res.data, list)
+
     def test_product_count_in_response(self):
         Product.objects.create(name="鍵盤", price=Decimal("100.00"), stock=1, category=self.category)
         res = self.client.get(f"/api/categories/{self.category.id}/")
@@ -201,6 +206,16 @@ class ProductCategoryAndActiveTests(APITestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.active.refresh_from_db()
         self.assertEqual(self.active.category_id, self.cat_b.id)
+
+    def test_admin_can_clear_category_with_empty_string(self):
+        # 前端 multipart 表單把分類選成「無」時送空字串，後端要當成 null 處理
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(
+            f"/api/products/{self.active.id}/", {"category": ""}, format="multipart"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.active.refresh_from_db()
+        self.assertIsNone(self.active.category)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

@@ -25,7 +25,7 @@ const baseQueryWithAuth = async (args, api, extraOptions) => {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Product', 'Order', 'User', 'Stats'],
+  tagTypes: ['Product', 'Category', 'Order', 'User', 'Stats'],
   endpoints: (builder) => ({
     // ---- 認證 ----
     login: builder.mutation({
@@ -57,15 +57,35 @@ export const apiSlice = createApi({
     // body 傳 FormData（含圖片檔），fetchBaseQuery 會自動用 multipart 送出
     addProduct: builder.mutation({
       query: (formData) => ({ url: '/products/', method: 'POST', body: formData }),
-      invalidatesTags: ['Product', 'Stats'],
+      // 新增商品可能改變分類的 product_count → 連同 Category 一起刷新
+      invalidatesTags: ['Product', 'Category', 'Stats'],
     }),
     updateProduct: builder.mutation({
       query: ({ id, formData }) => ({ url: `/products/${id}/`, method: 'PATCH', body: formData }),
-      invalidatesTags: ['Product', 'Stats'],
+      invalidatesTags: ['Product', 'Category', 'Stats'],
     }),
     deleteProduct: builder.mutation({
       query: (id) => ({ url: `/products/${id}/`, method: 'DELETE' }),
-      invalidatesTags: ['Product', 'Stats'],
+      invalidatesTags: ['Product', 'Category', 'Stats'],
+    }),
+
+    // ---- 分類管理 ----
+    getCategories: builder.query({
+      query: () => '/categories/',
+      providesTags: ['Category'],
+    }),
+    addCategory: builder.mutation({
+      query: (body) => ({ url: '/categories/', method: 'POST', body }),
+      invalidatesTags: ['Category'],
+    }),
+    updateCategory: builder.mutation({
+      query: ({ id, ...body }) => ({ url: `/categories/${id}/`, method: 'PATCH', body }),
+      invalidatesTags: ['Category'],
+    }),
+    deleteCategory: builder.mutation({
+      query: (id) => ({ url: `/categories/${id}/`, method: 'DELETE' }),
+      // 刪分類會把底下商品的 category 變 null → 商品列表也要刷新
+      invalidatesTags: ['Category', 'Product'],
     }),
 
     // ---- 訂單管理 ----
@@ -124,6 +144,10 @@ export const {
   useAddProductMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
+  useGetCategoriesQuery,
+  useAddCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
   useGetOrdersQuery,
   useUpdateOrderStatusMutation,
   useCancelOrderMutation,
