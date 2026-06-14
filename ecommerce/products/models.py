@@ -3,11 +3,28 @@ from django.contrib.auth.models import User
 
 # Create your models here.
 
+class Category(models.Model):
+    """商品分類（獨立資料表，管理員可後台自由新增/改名/刪除）。"""
+    name = models.CharField(max_length=50, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.IntegerField(default=0)
+    category = models.ForeignKey(
+        Category, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="products",
+    )
+    # 上下架開關：False 代表下架，前台顧客看不到，但後台管理員仍可見
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

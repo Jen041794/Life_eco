@@ -1,8 +1,8 @@
 from rest_framework import viewsets, permissions, filters
 from rest_framework.exceptions import ValidationError
 
-from .models import Product, ProductImage
-from .serializers import ProductSerializer
+from .models import Product, ProductImage, Category
+from .serializers import ProductSerializer, CategorySerializer
 
 MAX_IMAGES = 3
 
@@ -16,11 +16,20 @@ class IsAdminOrReadOnly(permissions.BasePermission):
         return bool(request.user and request.user.is_staff)
 
 
+class CategoryViewSet(viewsets.ModelViewSet):
+    """商品分類 CRUD。所有人可看，僅管理員可新增/改名/刪除。"""
+
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+
 class ProductViewSet(viewsets.ModelViewSet):
     """商品 CRUD。一般使用者只能瀏覽，管理員可以維護商品。
     圖片用 multipart 上傳，欄位名 images（最多 3 張）。"""
 
-    queryset = Product.objects.all().order_by("-created_at")
+    # 給 DefaultRouter 推 basename 用；實際查詢以 get_queryset 為準
+    queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [IsAdminOrReadOnly]
 
@@ -28,6 +37,18 @@ class ProductViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name", "description"]
     ordering_fields = ["price", "created_at"]
+
+    def get_queryset(self):
+        qs = Product.objects.all().order_by("-created_at")
+        # 前台顧客（非管理員）只看得到上架商品；管理員可看全部
+        user = self.request.user
+        if not (user and user.is_staff):
+            qs = qs.filter(is_active=True)
+        # ?category=<id> 依分類篩選
+        category_id = self.request.query_params.get("category")
+        if category_id:
+            qs = qs.filter(category_id=category_id)
+        return qs
 
     def _images_from_request(self):
         files = self.request.FILES.getlist("images")

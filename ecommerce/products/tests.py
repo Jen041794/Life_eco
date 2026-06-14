@@ -9,7 +9,7 @@ from PIL import Image
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .models import Product
+from .models import Product, Category
 
 
 def make_image(name="test.png"):
@@ -83,6 +83,124 @@ class ProductAPITests(APITestCase):
         res = self.client.delete(f"/api/products/{self.product.id}/")
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Product.objects.count(), 0)
+
+
+class CategoryAPITests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user("admin", password="pw12345678", is_staff=True)
+        self.user = User.objects.create_user("user", password="pw12345678")
+        self.category = Category.objects.create(name="3C")
+
+    # ---- 讀取（公開）----
+    def test_list_is_public(self):
+        res = self.client.get("/api/categories/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        names = [item["name"] for item in get_items(res)]
+        self.assertIn("3C", names)
+
+    def test_product_count_in_response(self):
+        Product.objects.create(name="鍵盤", price=Decimal("100.00"), stock=1, category=self.category)
+        res = self.client.get(f"/api/categories/{self.category.id}/")
+        self.assertEqual(res.data["product_count"], 1)
+
+    # ---- 寫入（限管理員）----
+    def test_anonymous_cannot_create(self):
+        res = self.client.post("/api/categories/", {"name": "家電"})
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_normal_user_cannot_create(self):
+        self.client.force_authenticate(self.user)
+        res = self.client.post("/api/categories/", {"name": "家電"})
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_admin_can_create(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post("/api/categories/", {"name": "家電"})
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Category.objects.count(), 2)
+
+    def test_duplicate_name_rejected(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post("/api/categories/", {"name": "3C"})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_admin_can_rename(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(f"/api/categories/{self.category.id}/", {"name": "電腦周邊"})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.category.refresh_from_db()
+        self.assertEqual(self.category.name, "電腦周邊")
+
+    def test_admin_can_delete_sets_product_category_null(self):
+        # 刪分類後，原本掛在底下的商品 category 變 null（SET_NULL），商品不會被刪
+        product = Product.objects.create(
+            name="鍵盤", price=Decimal("100.00"), stock=1, category=self.category
+        )
+        self.client.force_authenticate(self.admin)
+        res = self.client.delete(f"/api/categories/{self.category.id}/")
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        product.refresh_from_db()
+        self.assertIsNone(product.category)
+
+
+class ProductCategoryAndActiveTests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user("admin", password="pw12345678", is_staff=True)
+        self.user = User.objects.create_user("user", password="pw12345678")
+        self.cat_a = Category.objects.create(name="3C")
+        self.cat_b = Category.objects.create(name="家電")
+        self.active = Product.objects.create(
+            name="上架鍵盤", price=Decimal("100.00"), stock=1, category=self.cat_a, is_active=True
+        )
+        self.inactive = Product.objects.create(
+            name="下架滑鼠", price=Decimal("100.00"), stock=1, category=self.cat_a, is_active=False
+        )
+        self.other_cat = Product.objects.create(
+            name="電風扇", price=Decimal("100.00"), stock=1, category=self.cat_b, is_active=True
+        )
+
+    # ---- 上下架可見性 ----
+    def test_anonymous_sees_only_active(self):
+        res = self.client.get("/api/products/")
+        names = [item["name"] for item in get_items(res)]
+        self.assertIn("上架鍵盤", names)
+        self.assertNotIn("下架滑鼠", names)
+
+    def test_anonymous_cannot_retrieve_inactive(self):
+        res = self.client.get(f"/api/products/{self.inactive.id}/")
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_admin_sees_inactive(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.get("/api/products/")
+        names = [item["name"] for item in get_items(res)]
+        self.assertIn("下架滑鼠", names)
+
+    # ---- 分類篩選 ----
+    def test_filter_by_category(self):
+        res = self.client.get(f"/api/products/?category={self.cat_b.id}")
+        names = [item["name"] for item in get_items(res)]
+        self.assertEqual(names, ["電風扇"])
+
+    def test_serializer_exposes_category_name(self):
+        res = self.client.get(f"/api/products/{self.active.id}/")
+        self.assertEqual(res.data["category"], self.cat_a.id)
+        self.assertEqual(res.data["category_name"], "3C")
+
+    # ---- 管理員切換上下架 ----
+    def test_admin_can_toggle_is_active(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(f"/api/products/{self.active.id}/", {"is_active": False})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.active.refresh_from_db()
+        self.assertFalse(self.active.is_active)
+
+    def test_admin_can_set_category(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.patch(f"/api/products/{self.active.id}/", {"category": self.cat_b.id})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.active.refresh_from_db()
+        self.assertEqual(self.active.category_id, self.cat_b.id)
 
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())

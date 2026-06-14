@@ -6,6 +6,12 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 
 from drf_yasg import openapi
+from rest_framework.routers import DefaultRouter
+from products.views import CategoryViewSet
+
+# 分類路由獨立掛在 /api/categories/，不 nest 進 products 的 r'' 以免撞 detail route
+category_router = DefaultRouter()
+category_router.register(r'categories', CategoryViewSet)
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -20,6 +26,7 @@ schema_view = get_schema_view(
 urlpatterns = [
 
     #各app的api路由
+    path("api/", include(category_router.urls)),
     path("api/products/", include('products.urls')),
     path("api/orders/", include('orders.urls')),
     path("api/payments/", include('payments.urls')),
