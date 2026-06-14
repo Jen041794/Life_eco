@@ -23,7 +23,8 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'user', 'total_price', 'status', 'created_at', 'items']
+        fields = ['id', 'user', 'total_price', 'status', 'created_at', 'items',
+                  'recipient_name', 'recipient_phone', 'shipping_address']
 
 
 # ---- 寫入用（前端送購物車進來建立訂單）----
@@ -36,10 +37,16 @@ class OrderItemWriteSerializer(serializers.Serializer):
 class OrderCreateSerializer(serializers.ModelSerializer):
     """一次帶 items 建立訂單：自動算總價、扣庫存、寫進 OrderItem。"""
     items = OrderItemWriteSerializer(many=True, write_only=True)
+    # 收件資訊結帳必填：明確宣告成 CharField（預設 required=True、allow_blank=False），
+    # 蓋掉 model blank=True 會產生的「可省略」行為。
+    recipient_name = serializers.CharField(max_length=100)
+    recipient_phone = serializers.CharField(max_length=20)
+    shipping_address = serializers.CharField()
 
     class Meta:
         model = Order
-        fields = ['id', 'status', 'total_price', 'items']
+        fields = ['id', 'status', 'total_price', 'items',
+                  'recipient_name', 'recipient_phone', 'shipping_address']
         read_only_fields = ['status', 'total_price']
 
     def validate_items(self, items):
@@ -53,7 +60,13 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
         # 用 transaction 包起來：中途若庫存不足就整筆回滾，不會留下半成品訂單
         with transaction.atomic():
-            order = Order.objects.create(user=user, total_price=Decimal('0'))
+            order = Order.objects.create(
+                user=user,
+                total_price=Decimal('0'),
+                recipient_name=validated_data['recipient_name'],
+                recipient_phone=validated_data['recipient_phone'],
+                shipping_address=validated_data['shipping_address'],
+            )
             total = Decimal('0')
             for item in items_data:
                 product = item['product']

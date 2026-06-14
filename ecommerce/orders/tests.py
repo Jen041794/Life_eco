@@ -23,8 +23,15 @@ class OrderAPITests(APITestCase):
         self.p1 = Product.objects.create(name="商品1", price=Decimal("100.00"), stock=10)
         self.p2 = Product.objects.create(name="商品2", price=Decimal("50.00"), stock=5)
 
+    # 收件資訊現在是結帳必填，預設帶一組進去；要測「缺收件資訊」的案例再覆寫
+    SHIPPING = {
+        "recipient_name": "王小明",
+        "recipient_phone": "0912345678",
+        "shipping_address": "台北市信義區市府路 1 號",
+    }
+
     def _order_payload(self, items):
-        return {"items": items}
+        return {"items": items, **self.SHIPPING}
 
     def test_create_requires_auth(self):
         res = self.client.post(
@@ -54,6 +61,42 @@ class OrderAPITests(APITestCase):
     def test_empty_items_rejected(self):
         self.client.force_authenticate(self.user_a)
         res = self.client.post("/api/orders/", self._order_payload([]), format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    # ---- 收件資訊 ----
+    def test_shipping_info_saved_and_returned(self):
+        """結帳帶的收件資訊要存進訂單，讀訂單時也要回得出來。"""
+        self.client.force_authenticate(self.user_a)
+        res = self.client.post(
+            "/api/orders/",
+            self._order_payload([{"product": self.p1.id, "quantity": 1}]),
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["recipient_name"], "王小明")
+        self.assertEqual(res.data["recipient_phone"], "0912345678")
+        self.assertEqual(res.data["shipping_address"], "台北市信義區市府路 1 號")
+        # 重新 GET 一次，確認有落地（不是只在回應裡）
+        detail = self.client.get(f"/api/orders/{res.data['id']}/")
+        self.assertEqual(detail.data["recipient_name"], "王小明")
+
+    def test_missing_shipping_info_rejected(self):
+        """收件資訊是必填，沒帶就擋下（400）。"""
+        self.client.force_authenticate(self.user_a)
+        res = self.client.post(
+            "/api/orders/",
+            {"items": [{"product": self.p1.id, "quantity": 1}]},  # 故意不帶收件資訊
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("recipient_name", res.data)
+
+    def test_blank_recipient_name_rejected(self):
+        """收件人不能是空字串。"""
+        self.client.force_authenticate(self.user_a)
+        payload = self._order_payload([{"product": self.p1.id, "quantity": 1}])
+        payload["recipient_name"] = ""
+        res = self.client.post("/api/orders/", payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_zero_quantity_rejected(self):
@@ -158,7 +201,12 @@ class OrderAdminActionTests(APITestCase):
         self.client.force_authenticate(self.owner)
         res = self.client.post(
             "/api/orders/",
-            {"items": [{"product": self.product.id, "quantity": quantity}]},
+            {
+                "items": [{"product": self.product.id, "quantity": quantity}],
+                "recipient_name": "王小明",
+                "recipient_phone": "0912345678",
+                "shipping_address": "台北市信義區市府路 1 號",
+            },
             format="json",
         )
         return res.data["id"]
