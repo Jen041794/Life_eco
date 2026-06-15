@@ -99,6 +99,53 @@ class OrderAPITests(APITestCase):
         res = self.client.post("/api/orders/", payload, format="json")
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_invalid_phone_rejected(self):
+        """聯絡手機要符合 09 開頭 10 碼，格式錯就擋下。"""
+        self.client.force_authenticate(self.user_a)
+        payload = self._order_payload([{"product": self.p1.id, "quantity": 1}])
+        payload["recipient_phone"] = "1234"  # 非法格式
+        res = self.client.post("/api/orders/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("recipient_phone", res.data)
+
+    # ---- 對外訂單編號 ----
+    def test_order_number_format_and_uniqueness(self):
+        """每筆訂單都有 13 碼大寫英數的編號，且彼此不同。"""
+        import re
+        self.client.force_authenticate(self.user_a)
+        res1 = self.client.post(
+            "/api/orders/", self._order_payload([{"product": self.p1.id, "quantity": 1}]), format="json"
+        )
+        res2 = self.client.post(
+            "/api/orders/", self._order_payload([{"product": self.p2.id, "quantity": 1}]), format="json"
+        )
+        n1 = res1.data["order_number"]
+        n2 = res2.data["order_number"]
+        self.assertRegex(n1, r"^[A-Z0-9]{13}$")
+        self.assertRegex(n2, r"^[A-Z0-9]{13}$")
+        self.assertNotEqual(n1, n2)
+
+    # ---- 前台 / 後台訂單視圖分離 ----
+    def test_admin_sees_all_orders_in_admin_view(self):
+        """後台（不帶 mine）：管理員看得到所有人的訂單。"""
+        self.client.force_authenticate(self.user_a)
+        self.client.post(
+            "/api/orders/", self._order_payload([{"product": self.p1.id, "quantity": 1}]), format="json"
+        )
+        self.client.force_authenticate(self.admin)
+        res = self.client.get("/api/orders/")
+        self.assertEqual(len(get_items(res)), 1)  # 看得到 user_a 的訂單
+
+    def test_admin_with_mine_only_sees_own_orders(self):
+        """前台「我的訂單」（mine=1）：管理員也只看得到自己的，不會撈到顧客的。"""
+        self.client.force_authenticate(self.user_a)
+        self.client.post(
+            "/api/orders/", self._order_payload([{"product": self.p1.id, "quantity": 1}]), format="json"
+        )
+        self.client.force_authenticate(self.admin)
+        res = self.client.get("/api/orders/?mine=1")
+        self.assertEqual(len(get_items(res)), 0)  # 管理員自己沒下單 → 看不到 user_a 的
+
     def test_zero_quantity_rejected(self):
         self.client.force_authenticate(self.user_a)
         res = self.client.post(

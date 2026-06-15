@@ -35,7 +35,12 @@ class OrderViewSet(
 
         user = self.request.user
         qs = Order.objects.all().order_by("-created_at")
-        if not user.is_staff:
+
+        # 前台「我的訂單」會帶 ?mine=1：永遠只回自己的訂單（即使是管理員），
+        # 讓前台顧客視圖與後台「看全部」徹底分開、不靠角色判斷。
+        # 非管理員無論如何都只看得到自己的。
+        mine = self.request.query_params.get("mine") == "1"
+        if mine or not user.is_staff:
             qs = qs.filter(user=user)
 
         # ?status=paid 之類的狀態篩選（後台常要「只看待出貨」）

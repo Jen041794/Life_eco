@@ -85,6 +85,70 @@ class UserViewSetAPITests(APITestCase):
         res = self.client.get("/api/user/")
         self.assertIn("is_active", get_items(res)[0])
 
+    # ---- 後台會員管理分頁：依角色篩選 ----
+    def test_admin_can_filter_by_role(self):
+        admin = User.objects.create_user("admin", password="test12345", is_staff=True)
+        User.objects.create_user("normal", password="test12345")
+        self.client.force_authenticate(admin)
+
+        res_customer = self.client.get("/api/user/?role=customer")
+        names = [u["username"] for u in get_items(res_customer)]
+        self.assertIn("normal", names)
+        self.assertNotIn("admin", names)
+
+        res_admin = self.client.get("/api/user/?role=admin")
+        names = [u["username"] for u in get_items(res_admin)]
+        self.assertIn("admin", names)
+        self.assertNotIn("normal", names)
+
+
+class AdminCreateUserTests(APITestCase):
+    """後台新增會員：僅管理員可建，且只能建出一般會員（is_staff=False）。"""
+
+    def setUp(self):
+        self.admin = User.objects.create_user("admin", password="test12345", is_staff=True)
+
+    def test_admin_can_create_customer(self):
+        self.client.force_authenticate(self.admin)
+        res = self.client.post(
+            "/api/user/create/",
+            {"username": "created", "email": "c@test.com", "password": "test12345"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        created = User.objects.get(username="created")
+        self.assertFalse(created.is_staff)  # 一定是一般會員
+        self.assertTrue(hasattr(created, "userprofile"))  # 一併建好 profile
+        self.assertNotIn("password", res.data)
+
+    def test_created_user_is_never_staff_even_if_requested(self):
+        # 就算前端硬塞 is_staff=True，後端也不會理會（serializer 沒這個欄位）
+        self.client.force_authenticate(self.admin)
+        self.client.post(
+            "/api/user/create/",
+            {"username": "sneaky", "email": "s@test.com", "password": "test12345", "is_staff": True},
+            format="json",
+        )
+        self.assertFalse(User.objects.get(username="sneaky").is_staff)
+
+    def test_normal_user_cannot_create(self):
+        normal = User.objects.create_user("normal", password="test12345")
+        self.client.force_authenticate(normal)
+        res = self.client.post(
+            "/api/user/create/",
+            {"username": "x", "email": "x@test.com", "password": "test12345"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_anonymous_cannot_create(self):
+        res = self.client.post(
+            "/api/user/create/",
+            {"username": "x", "email": "x@test.com", "password": "test12345"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
 
 class MyProfileAPITests(APITestCase):
     """顧客端：讀寫自己的個人資料（電話、地址）。"""
@@ -109,6 +173,13 @@ class MyProfileAPITests(APITestCase):
         self.assertEqual(res.data["phone"], "")
         self.assertEqual(res.data["address"], "")
 
+    def test_profile_autocreated_for_account_without_one(self):
+        # superuser 等用 createsuperuser 建立的帳號沒有 profile，端點要自動補、不能 500
+        admin = User.objects.create_superuser("root", "root@test.com", "test12345")
+        self.client.force_authenticate(admin)
+        res = self.client.get("/api/user/profile/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
     def test_update_own_profile(self):
         self.client.force_authenticate(self.alice)
         res = self.client.patch(
@@ -120,6 +191,23 @@ class MyProfileAPITests(APITestCase):
         self.alice.userprofile.refresh_from_db()
         self.assertEqual(self.alice.userprofile.phone, "0912345678")
         self.assertEqual(self.alice.userprofile.address, "台北市信義區")
+
+    def test_invalid_phone_rejected(self):
+        # 電話填了就要符合 09 開頭 10 碼
+        self.client.force_authenticate(self.alice)
+        res = self.client.patch(
+            "/api/user/profile/", {"phone": "12345"}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("phone", res.data)
+
+    def test_blank_phone_allowed(self):
+        # 但留空仍然可以（非必填）
+        self.client.force_authenticate(self.alice)
+        res = self.client.patch(
+            "/api/user/profile/", {"phone": "", "address": "台北市"}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
 
     def test_cannot_touch_other_users_profile(self):
         # bob 登入時，profile 端點只會操作到 bob 自己的，不會碰到 alice

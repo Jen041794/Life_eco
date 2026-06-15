@@ -6,6 +6,7 @@ from rest_framework import serializers
 from orders.models import Order, OrderItem
 from products.models import Product
 from products.serializers import ProductSerializer
+from user.serializers import phone_validator
 
 
 # ---- 讀取用（回傳給前端看的格式）----
@@ -23,7 +24,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'user', 'total_price', 'status', 'created_at', 'items',
+        fields = ['id', 'order_number', 'user', 'total_price', 'status', 'created_at', 'items',
                   'recipient_name', 'recipient_phone', 'shipping_address']
 
 
@@ -40,7 +41,7 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     # 收件資訊結帳必填：明確宣告成 CharField（預設 required=True、allow_blank=False），
     # 蓋掉 model blank=True 會產生的「可省略」行為。
     recipient_name = serializers.CharField(max_length=100)
-    recipient_phone = serializers.CharField(max_length=20)
+    recipient_phone = serializers.CharField(max_length=20, validators=[phone_validator])
     shipping_address = serializers.CharField()
 
     class Meta:

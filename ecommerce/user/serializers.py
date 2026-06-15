@@ -1,7 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from django.core.validators import RegexValidator
 
 from .models import UserProfile
+
+# 台灣手機：09 開頭、共 10 碼數字（與前端 validators.js 同一套規則）
+phone_validator = RegexValidator(r"^09\d{8}$", "手機需為 09 開頭、共 10 碼數字。")
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -12,6 +16,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """顧客端：使用者讀寫自己的個人資料（電話、地址）。"""
+
+    # 電話非必填，但填了就要符合手機格式
+    phone = serializers.CharField(
+        max_length=20, required=False, allow_blank=True, validators=[phone_validator]
+    )
 
     class Meta:
         model = UserProfile

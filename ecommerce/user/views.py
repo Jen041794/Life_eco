@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.contrib.auth.models import User
 
+from .models import UserProfile
+
 from .serializers import (
     UserSerializer,
     UserProfileSerializer,
@@ -24,7 +26,14 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
         user = self.request.user
         if user.is_staff:
-            return User.objects.all().order_by("id")
+            qs = User.objects.all().order_by("id")
+            # 後台會員管理分頁用：?role=admin 只看管理員、?role=customer 只看一般會員
+            role = self.request.query_params.get("role")
+            if role == "admin":
+                qs = qs.filter(is_staff=True)
+            elif role == "customer":
+                qs = qs.filter(is_staff=False)
+            return qs
         return User.objects.filter(id=user.id).order_by("id")
 
     def get_serializer_class(self):
@@ -83,8 +92,10 @@ class MyProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
-        # 固定回傳自己的 profile，從根本上保證碰不到別人的資料
-        return self.request.user.userprofile
+        # 固定回傳自己的 profile，從根本上保證碰不到別人的資料。
+        # 用 get_or_create：像 superuser 這種沒有 profile 的帳號也不會 500。
+        profile, _ = UserProfile.objects.get_or_create(user=self.request.user)
+        return profile
 
 
 # 註冊 API：任何人都可呼叫
@@ -92,6 +103,14 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
+
+
+# 後台新增會員 API：僅管理員可呼叫。沿用 RegisterSerializer，
+# 用 create_user 建立的帳號 is_staff 預設為 False → 只會建出「一般會員」。
+class AdminCreateUserView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
+    permission_classes = [permissions.IsAdminUser]
 
 
 # 登入 API：用帳密換取 JWT（access + refresh），等同 /api/token/
