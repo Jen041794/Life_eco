@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { useDispatch } from 'react-redux'
 import { Row, Col, Card, Badge, Button, Spinner, Alert } from 'react-bootstrap'
 import { useGetProductsQuery, useGetCategoriesQuery } from '../../features/api/apiSlice'
+import { addItem } from '../../features/cart/cartSlice'
 
 // 顧客端商品列表骨架：分類 chip 篩選 + 商品卡片。
 // 後端對非管理員自動只回上架（is_active）商品，所以這裡直接呈現即可。
 export default function ShopPage() {
+  const dispatch = useDispatch()
   const [category, setCategory] = useState('') // '' = 全部
   const { data: categories } = useGetCategoriesQuery()
   const { data, isLoading, isError } = useGetProductsQuery({ category, storefront: true })
@@ -69,7 +72,12 @@ export default function ShopPage() {
                 )}
                 <div className="mt-auto">
                   <div className="fw-bold text-primary mb-2">${p.price}</div>
-                  <Button size="sm" className="w-100" disabled={p.stock <= 0}>
+                  <Button
+                    size="sm"
+                    className="w-100"
+                    disabled={p.stock <= 0}
+                    onClick={() => dispatch(addItem(p))}
+                  >
                     {p.stock > 0 ? '加入購物車' : '已售完'}
                   </Button>
                 </div>

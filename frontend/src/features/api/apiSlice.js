@@ -4,20 +4,25 @@ import { logout } from '../auth/authSlice'
 // 後端 API 位址（之後部署可改成環境變數 VITE_API_BASE_URL）
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'
 
+// 依目前所在路徑決定要用哪一份 session：/admin 底下走管理員、其餘走顧客。
+// 這讓前台與後台各自帶自己的 token，互不干擾。
+const currentScope = () =>
+  window.location.pathname.startsWith('/admin') ? 'admin' : 'customer'
+
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_BASE,
   prepareHeaders: (headers, { getState }) => {
-    const token = getState().auth.access
+    const token = getState().auth[currentScope()].access
     if (token) headers.set('Authorization', `Bearer ${token}`)
     return headers
   },
 })
 
-// 包一層：token 失效（401）時自動登出，把使用者導回登入頁
+// 包一層：token 失效（401）時只登出「目前這一邊」，不影響另一邊
 const baseQueryWithAuth = async (args, api, extraOptions) => {
   const result = await rawBaseQuery(args, api, extraOptions)
   if (result.error && result.error.status === 401) {
-    api.dispatch(logout())
+    api.dispatch(logout(currentScope()))
   }
   return result
 }
@@ -117,8 +122,18 @@ export const apiSlice = createApi({
 
     // ---- 會員管理 ----
     getUsers: builder.query({
-      query: ({ page = 1 } = {}) => `/user/?page=${page}`,
+      query: ({ page = 1, role = '' } = {}) => {
+        const params = new URLSearchParams({ page })
+        // 後台會員管理分頁：role=admin / customer
+        if (role) params.set('role', role)
+        return `/user/?${params.toString()}`
+      },
       providesTags: ['User'],
+    }),
+    // 後台新增一般會員（僅管理員）：body { username, email, password }
+    adminCreateUser: builder.mutation({
+      query: (body) => ({ url: '/user/create/', method: 'POST', body }),
+      invalidatesTags: ['User'],
     }),
     activateUser: builder.mutation({
       query: (id) => ({ url: `/user/${id}/activate/`, method: 'POST' }),
@@ -160,9 +175,9 @@ export const apiSlice = createApi({
       invalidatesTags: ['Order', 'Product'],
     }),
 
-    // 我的訂單：打同一支 /orders/，後端對非管理員只回自己的訂單
+    // 我的訂單：帶 mine=1，後端強制只回自己的訂單（即使登入的是管理員）
     getMyOrders: builder.query({
-      query: ({ page = 1 } = {}) => `/orders/?page=${page}`,
+      query: ({ page = 1 } = {}) => `/orders/?mine=1&page=${page}`,
       providesTags: ['Order'],
     }),
   }),
@@ -187,6 +202,7 @@ export const {
   useActivateUserMutation,
   useDeactivateUserMutation,
   useUpdateUserMutation,
+  useAdminCreateUserMutation,
   // 顧客端
   useRegisterMutation,
   useGetProfileQuery,

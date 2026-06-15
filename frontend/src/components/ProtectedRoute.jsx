@@ -4,11 +4,11 @@ import { selectAccess, selectCurrentUser } from '../features/auth/authSlice'
 
 // 後台路由守衛：必須登入，且必須是管理員（is_staff）
 export default function ProtectedRoute() {
-  const access = useSelector(selectAccess)
-  const user = useSelector(selectCurrentUser)
+  const access = useSelector(selectAccess('admin'))
+  const user = useSelector(selectCurrentUser('admin'))
 
   if (!access) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/admin/login" replace />
   }
   // 已登入但不是管理員：擋在外面
   if (user && !user.is_staff) {

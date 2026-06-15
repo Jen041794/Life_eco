@@ -14,11 +14,11 @@ const menu = [
 export default function AdminLayout() {
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const user = useSelector(selectCurrentUser)
+  const user = useSelector(selectCurrentUser('admin'))
 
   const handleLogout = () => {
-    dispatch(logout())
-    navigate('/login')
+    dispatch(logout('admin')) // 只登出管理員這一邊，前台顧客不受影響
+    navigate('/admin/login')
   }
 
   return (

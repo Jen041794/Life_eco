@@ -7,7 +7,7 @@ export default function OrderDetailModal({ show, onHide, order }) {
   return (
     <Modal show={show} onHide={onHide} centered size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>訂單 #{order.id} 明細</Modal.Title>
+        <Modal.Title>訂單 #{order.order_number} 明細</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <div className="mb-3 d-flex flex-wrap gap-4">

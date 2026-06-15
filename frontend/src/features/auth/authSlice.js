@@ -1,33 +1,38 @@
 import { createSlice } from '@reduxjs/toolkit'
 
-// 從 localStorage 還原登入狀態（重新整理後不會被登出）
-const tokensFromStorage = JSON.parse(localStorage.getItem('auth') || 'null')
+// 前台（顧客）與後台（管理員）各自獨立的登入 session，互不影響。
+// 兩份一起存在 localStorage 的 'auth'，重新整理後都能各自還原。
+const emptyScope = () => ({ access: null, refresh: null, user: null })
 
-const initialState = tokensFromStorage || {
-  access: null,
-  refresh: null,
-  user: null, // { id, username, is_staff, ... }
+function loadInitialState() {
+  const stored = JSON.parse(localStorage.getItem('auth') || 'null')
+  // 必須是新版的 { customer, admin } 結構才採用，否則重置（相容舊版單一 session 格式）
+  if (stored && stored.customer && stored.admin) return stored
+  return { customer: emptyScope(), admin: emptyScope() }
 }
 
 const authSlice = createSlice({
   name: 'auth',
-  initialState,
+  initialState: loadInitialState(),
   reducers: {
+    // payload: { scope: 'customer' | 'admin', access, refresh }
     setCredentials(state, action) {
-      const { access, refresh } = action.payload
-      state.access = access
-      state.refresh = refresh
+      const { scope, access, refresh } = action.payload
+      state[scope].access = access
+      state[scope].refresh = refresh
       localStorage.setItem('auth', JSON.stringify(state))
     },
+    // payload: { scope, user }
     setUser(state, action) {
-      state.user = action.payload
+      const { scope, user } = action.payload
+      state[scope].user = user
       localStorage.setItem('auth', JSON.stringify(state))
     },
-    logout(state) {
-      state.access = null
-      state.refresh = null
-      state.user = null
-      localStorage.removeItem('auth')
+    // payload: scope（只登出指定的一邊，另一邊不受影響）
+    logout(state, action) {
+      const scope = action.payload
+      state[scope] = emptyScope()
+      localStorage.setItem('auth', JSON.stringify(state))
     },
   },
 })
@@ -35,6 +40,6 @@ const authSlice = createSlice({
 export const { setCredentials, setUser, logout } = authSlice.actions
 export default authSlice.reducer
 
-// 方便取用的 selector
-export const selectAccess = (state) => state.auth.access
-export const selectCurrentUser = (state) => state.auth.user
+// selector 工廠：依 scope 取用對應的登入狀態
+export const selectAccess = (scope) => (state) => state.auth[scope].access
+export const selectCurrentUser = (scope) => (state) => state.auth[scope].user

@@ -1,44 +1,39 @@
 import { useState } from 'react'
 import { useDispatch } from 'react-redux'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Form, Button, Card, Alert, Spinner } from 'react-bootstrap'
 import { apiSlice, useLoginMutation } from '../features/api/apiSlice'
 import { setCredentials, setUser, logout } from '../features/auth/authSlice'
 
-export default function LoginPage() {
+// 後台登入入口（/admin/login）：只放行管理員，前台不會連到這裡
+export default function AdminLoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [login, { isLoading }] = useLoginMutation()
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const location = useLocation()
-  // CustomerRoute 擋下來時會帶 from（原本想去的頁），登入後送回去
-  const from = location.state?.from
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     try {
-      // 1) 帳密換 JWT（存進「顧客」這份 session）
       const tokens = await login({ username, password }).unwrap()
-      dispatch(setCredentials({ scope: 'customer', ...tokens }))
-      // 換了身分 → 清掉上一個帳號殘留的 API 快取（訂單、個資等），避免看到別人的資料
+      dispatch(setCredentials({ scope: 'admin', ...tokens }))
+      // 換了身分 → 清掉上一個帳號殘留的 API 快取，避免看到別人的資料
       dispatch(apiSlice.util.resetApiState())
 
-      // 2) 抓自己的資料；這是「顧客登入入口」，管理員請走後台
       const me = await dispatch(
         apiSlice.endpoints.getMe.initiate(undefined, { forceRefetch: true })
       ).unwrap()
 
-      if (me.is_staff) {
-        dispatch(logout('customer'))
-        setError('這是管理員帳號，請從後台登入。')
+      if (!me.is_staff) {
+        dispatch(logout('admin'))
+        setError('這個帳號不是管理員，無法進入後台。')
         return
       }
-      dispatch(setUser({ scope: 'customer', user: me }))
-      // 回到原本想去的頁（例如結帳），沒有就回首頁
-      navigate(from || '/')
+      dispatch(setUser({ scope: 'admin', user: me }))
+      navigate('/admin')
     } catch (err) {
       if (err?.status === 401) setError('帳號或密碼錯誤。')
       else setError('登入失敗，請稍後再試。')
@@ -46,10 +41,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="d-flex justify-content-center align-items-center min-vh-100 bg-light">
-      <Card style={{ width: 360 }} className="shadow-sm">
+    <div className="d-flex justify-content-center align-items-center min-vh-100 bg-dark">
+      <Card style={{ width: 360 }} className="shadow">
         <Card.Body>
-          <Card.Title className="mb-4 text-center">顧客登入</Card.Title>
+          <Card.Title className="mb-4 text-center">Life_eco 後台登入</Card.Title>
           {error && <Alert variant="danger" className="py-2">{error}</Alert>}
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3">
@@ -70,13 +65,10 @@ export default function LoginPage() {
                 required
               />
             </Form.Group>
-            <Button type="submit" className="w-100" disabled={isLoading}>
-              {isLoading ? <Spinner size="sm" animation="border" /> : '登入'}
+            <Button type="submit" variant="dark" className="w-100" disabled={isLoading}>
+              {isLoading ? <Spinner size="sm" animation="border" /> : '登入後台'}
             </Button>
           </Form>
-          <div className="text-center mt-3 small text-muted">
-            還沒有帳號？<Link to="/register">註冊</Link>
-          </div>
         </Card.Body>
       </Card>
     </div>

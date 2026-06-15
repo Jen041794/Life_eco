@@ -43,7 +43,7 @@ export default function OrdersPage() {
   }
 
   const cancel = async (order) => {
-    if (!window.confirm(`確定要取消訂單 #${order.id} 嗎？\n（會回補庫存，已付款會退款）`)) return
+    if (!window.confirm(`確定要取消訂單 #${order.order_number} 嗎？\n（會回補庫存，已付款會退款）`)) return
     try {
       await cancelOrder(order.id).unwrap()
     } catch (err) {
@@ -88,7 +88,7 @@ export default function OrdersPage() {
       <Table hover responsive className="align-middle bg-white shadow-sm">
         <thead className="table-light">
           <tr>
-            <th>#</th><th>客人</th><th className="text-end">金額</th>
+            <th>訂單編號</th><th>客人</th><th className="text-end">金額</th>
             <th>狀態</th><th>建立時間</th><th style={{ width: 240 }}>操作</th>
           </tr>
         </thead>
@@ -100,7 +100,7 @@ export default function OrdersPage() {
               const action = NEXT_ACTION[o.status]
               return (
                 <tr key={o.id}>
-                  <td>{o.id}</td>
+                  <td className="font-monospace small">#{o.order_number}</td>
                   <td>{o.user}</td>
                   <td className="text-end">${o.total_price}</td>
                   <td><Badge bg={STATUS_VARIANTS[o.status]}>{STATUS_LABELS[o.status]}</Badge></td>
