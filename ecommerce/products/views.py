@@ -42,10 +42,18 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Product.objects.all().order_by("-created_at")
-        # 前台顧客（非管理員）只看得到上架商品；管理員可看全部
         user = self.request.user
-        if not (user and user.is_staff):
+        is_staff = bool(user and user.is_staff)
+
+        # 「只看上架品」是前台的規則：
+        #  - 非管理員：永遠只看得到上架商品
+        #  - 管理員：預設看全部（後台管理、編輯／重新上架下架品都需要），
+        #    但前台逛商品頁會帶 ?storefront=1，這時管理員也只看上架品，
+        #    避免「管理員逛前台」時看到已下架的商品。
+        storefront = self.request.query_params.get("storefront") == "1"
+        if not is_staff or storefront:
             qs = qs.filter(is_active=True)
+
         # ?category=<id> 依分類篩選
         category_id = self.request.query_params.get("category")
         if category_id:

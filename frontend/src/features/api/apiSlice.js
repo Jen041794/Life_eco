@@ -25,7 +25,7 @@ const baseQueryWithAuth = async (args, api, extraOptions) => {
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithAuth,
-  tagTypes: ['Product', 'Category', 'Order', 'User', 'Stats'],
+  tagTypes: ['Product', 'Category', 'Order', 'User', 'Stats', 'Profile'],
   endpoints: (builder) => ({
     // ---- 認證 ----
     login: builder.mutation({
@@ -47,9 +47,12 @@ export const apiSlice = createApi({
 
     // ---- 商品管理 ----
     getProducts: builder.query({
-      query: ({ page = 1, search = '' } = {}) => {
+      query: ({ page = 1, search = '', category = '', storefront = false } = {}) => {
         const params = new URLSearchParams({ page })
         if (search) params.set('search', search)
+        if (category) params.set('category', category)
+        // 前台逛商品帶 storefront=1：後端一律只回上架品（連管理員逛前台也是）
+        if (storefront) params.set('storefront', '1')
         return `/products/?${params.toString()}`
       },
       providesTags: ['Product'],
@@ -133,6 +136,35 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['User'],
     }),
+
+    // ==== 顧客端 ====
+    // 註冊（任何人可呼叫）：body { username, email, password }
+    register: builder.mutation({
+      query: (body) => ({ url: '/user/register/', method: 'POST', body }),
+    }),
+
+    // 我的個人資料：讀寫自己的電話、地址（body { phone, address }）
+    getProfile: builder.query({
+      query: () => '/user/profile/',
+      providesTags: ['Profile'],
+    }),
+    updateProfile: builder.mutation({
+      query: (body) => ({ url: '/user/profile/', method: 'PATCH', body }),
+      invalidatesTags: ['Profile'],
+    }),
+
+    // 下單：body { items: [{ product, quantity }], recipient_name, recipient_phone, shipping_address }
+    // 後端會自動算總價、扣庫存 → 連同商品列表一起刷新
+    createOrder: builder.mutation({
+      query: (body) => ({ url: '/orders/', method: 'POST', body }),
+      invalidatesTags: ['Order', 'Product'],
+    }),
+
+    // 我的訂單：打同一支 /orders/，後端對非管理員只回自己的訂單
+    getMyOrders: builder.query({
+      query: ({ page = 1 } = {}) => `/orders/?page=${page}`,
+      providesTags: ['Order'],
+    }),
   }),
 })
 
@@ -155,4 +187,10 @@ export const {
   useActivateUserMutation,
   useDeactivateUserMutation,
   useUpdateUserMutation,
+  // 顧客端
+  useRegisterMutation,
+  useGetProfileQuery,
+  useUpdateProfileMutation,
+  useCreateOrderMutation,
+  useGetMyOrdersQuery,
 } = apiSlice

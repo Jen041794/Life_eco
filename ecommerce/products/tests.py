@@ -181,6 +181,15 @@ class ProductCategoryAndActiveTests(APITestCase):
         names = [item["name"] for item in get_items(res)]
         self.assertIn("下架滑鼠", names)
 
+    def test_admin_with_storefront_flag_hides_inactive(self):
+        # 管理員逛前台（帶 storefront=1）時也只看得到上架品，
+        # 避免「在同一瀏覽器登入後台後，前台仍顯示下架商品」的 bug 復發。
+        self.client.force_authenticate(self.admin)
+        res = self.client.get("/api/products/?storefront=1")
+        names = [item["name"] for item in get_items(res)]
+        self.assertIn("上架鍵盤", names)
+        self.assertNotIn("下架滑鼠", names)
+
     # ---- 分類篩選 ----
     def test_filter_by_category(self):
         res = self.client.get(f"/api/products/?category={self.cat_b.id}")
