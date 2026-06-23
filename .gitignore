@@ -14,6 +14,9 @@ venv/
 *.log
 *.sqlite3
 
+# collectstatic 產生的靜態檔（部署時自動生成，不進 git）
+staticfiles/
+
 # 本機 MySQL 資料目錄（若放在專案內時）
 mysql-data/
 
