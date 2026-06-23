@@ -1,0 +1,4 @@
+# Shell 腳本與 Procfile 一律用 LF 換行，確保在 Linux（Render）上能正確執行
+# （Windows 的 CRLF 會讓 #!/usr/bin/env bash 的 shebang 失效）
+*.sh text eol=lf
+Procfile text eol=lf
