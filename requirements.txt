@@ -10,7 +10,7 @@ drf-yasg==1.21.15
 gunicorn==26.0.0
 idna==3.18
 inflection==0.5.1
-mysqlclient==2.2.8
+mysqlclient==2.2.8; sys_platform == "win32"
 packaging==26.2
 pillow==12.2.0
 pip-system-certs==5.3
