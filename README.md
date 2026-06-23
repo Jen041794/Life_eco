@@ -7,6 +7,16 @@
 
 ---
 
+## 🔗 Live Demo
+
+- 🛍️ **線上 Demo（前端）**：<https://life-eco.vercel.app>
+- ⚙️ **後端 API**：<https://life-eco.onrender.com>
+- 📖 **API 文件（Swagger）**：<https://life-eco.onrender.com/swagger/>
+
+> ⏳ 後端部署在 Render 免費方案，閒置一段時間會休眠，**第一次開啟可能需等約 30～50 秒**喚醒，屬正常現象。
+
+---
+
 ## 🖼️ 畫面預覽
 
 ### 顧客端首頁
