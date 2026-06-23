@@ -1,6 +1,6 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.urls import path, include, re_path
+from django.views.static import serve
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
@@ -43,6 +43,10 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc')
 ]
 
-# 開發階段讓 Django 直接 serve 上傳的圖片（正式環境會交給 nginx / 雲端）
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# 商品圖片已 commit 進 git，會跟著 repo 一起部署上去。
+# 注意：Django 的 static() helper 在 DEBUG=False 時不作用，所以這裡用 serve()
+# 直接提供 media，讓正式環境（DEBUG 關掉）也讀得到圖片。
+# 作品集 demo 這樣足夠；若是高流量正式站，建議改用雲端物件儲存 / CDN。
+urlpatterns += [
+    re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+]
