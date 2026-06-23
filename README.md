@@ -7,6 +7,19 @@
 
 ---
 
+## 🖼️ 畫面預覽
+
+### 顧客端首頁
+![顧客端首頁](frontend/public/homescreen.png)
+
+### 後台儀表板
+![後台儀表板](frontend/public/backscreen.png)
+
+### 手機版（RWD）
+<img src="frontend/public/phonescreen.png" width="280" alt="手機版首頁" />
+
+---
+
 ## ✨ 主要功能
 
 ### 顧客端 API
