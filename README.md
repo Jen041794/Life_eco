@@ -54,10 +54,11 @@
 |------|------|
 | 後端 | Python、Django、Django REST Framework |
 | 認證 | JWT（djangorestframework-simplejwt） |
-| 資料庫 | MySQL（Django ORM） |
+| 資料庫 | MySQL（本機開發）／ PostgreSQL（正式環境，Supabase） |
 | API 文件 | drf-yasg（Swagger / ReDoc） |
 | 前端 | React、Vite、React Router、Redux Toolkit + RTK Query、Bootstrap |
 | 測試 | Django `APITestCase`（58 個測試） |
+| 部署 | 前端 Vercel、後端 Render（gunicorn + WhiteNoise）、資料庫 Supabase |
 
 ---
 
@@ -142,4 +143,4 @@ python manage.py test
 
 ## 📌 備註
 - 金流目前為 mock（模擬一律成功），程式內已標好串接 Stripe 測試模式的位置。
-- 上傳的商品圖片存於本機 `media/`（開發用），正式環境建議改用雲端儲存。
+- 商品圖片已隨 repo 一起版控，正式環境由 WhiteNoise 在 WSGI 層提供；後台新上傳的圖片屬本機/暫存，未串雲端物件儲存。
