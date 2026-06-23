@@ -1,5 +1,6 @@
 import { Row, Col, Card, Table, Spinner, Alert, Badge } from 'react-bootstrap'
 import { useGetStatsQuery } from '../features/api/apiSlice'
+import { formatPrice } from '../utils/formatPrice'
 
 const statusLabels = {
   pending: '待付款',
@@ -32,7 +33,7 @@ export default function DashboardPage() {
 
       <Row className="g-3 mb-4">
         <Col xs={6} md={3}><StatCard title="總訂單" value={data.total_orders} /></Col>
-        <Col xs={6} md={3}><StatCard title="總營收" value={`$${data.total_revenue}`} variant="success" /></Col>
+        <Col xs={6} md={3}><StatCard title="總營收" value={`$${formatPrice(data.total_revenue)}`} variant="success" /></Col>
         <Col xs={6} md={3}><StatCard title="會員數" value={data.total_users} variant="info" /></Col>
         <Col xs={6} md={3}><StatCard title="商品數" value={data.product_count} variant="secondary" /></Col>
       </Row>

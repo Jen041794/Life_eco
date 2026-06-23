@@ -10,7 +10,9 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 讀取與 manage.py 同層的 .env（祕密資訊都放這裡，不進 git）
-load_dotenv(BASE_DIR / ".env")
+# override=True：讓 .env 成為唯一真相，避免被殘留的系統/工作階段環境變數蓋過
+# （曾踩雷：shell 裡留了一把別帳號的 STRIPE_SECRET_KEY，導致前後端帳號不一致）
+load_dotenv(BASE_DIR / ".env", override=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -26,6 +28,11 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
 # 用逗號分隔，例如 DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost
 ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h]
+
+# Stripe 金流（測試模式）：金鑰都放 .env，不進 git
+# secret key（sk_test_...）只在後端用；publishable key（pk_test_...）給前端
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
 
 
 # Application definition

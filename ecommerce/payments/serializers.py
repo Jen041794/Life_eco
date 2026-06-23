@@ -1,5 +1,7 @@
 import uuid
 
+import stripe
+from django.conf import settings
 from django.db import transaction
 from rest_framework import serializers
 
@@ -20,11 +22,16 @@ class PaymentSerializer(serializers.ModelSerializer):
 
 # ---- 寫入用（前端對某張訂單發起付款）----
 class PaymentCreateSerializer(serializers.ModelSerializer):
-    """建立付款。amount 由訂單金額決定，user/狀態都在後端產生，前端只送 order + provider。"""
+    """建立付款。amount 由訂單金額決定，user/狀態都在後端產生。
+    - provider='mock'：不接金流，一律成功（給測試與 demo 用）
+    - provider='stripe'：需附 payment_intent_id，後端會跟 Stripe 查證後才寫入"""
+
+    # 只有 Stripe 付款才會帶；寫入用、不回傳
+    payment_intent_id = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = Payment
-        fields = ['id', 'order', 'provider']
+        fields = ['id', 'order', 'provider', 'payment_intent_id']
 
     def validate_order(self, order):
         request = self.context['request']
@@ -40,18 +47,28 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
         order = validated_data['order']
         provider = validated_data.get('provider') or 'mock'
 
-        # ===================================================================
-        # 模擬金流：目前一律回傳成功，方便前端先串流程。
-        # 之後要接 Stripe 測試模式時，把下面這段換成真正的 API 呼叫即可，例如：
-        #   import stripe
-        #   stripe.api_key = settings.STRIPE_SECRET_KEY      # sk_test_...
-        #   intent = stripe.PaymentIntent.create(
-        #       amount=int(order.total_price * 100), currency="twd", ...)
-        #   success = intent.status == "succeeded"
-        #   transaction_id = intent.id
-        # ===================================================================
-        success = True
-        transaction_id = f"mock_{uuid.uuid4().hex[:24]}"
+        if provider == 'stripe':
+            # 不盲信前端：拿 payment_intent_id 回 Stripe 查證，金額/狀態都對才算數
+            intent_id = validated_data.get('payment_intent_id')
+            if not intent_id:
+                raise serializers.ValidationError("Stripe 付款需附 payment_intent_id。")
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            try:
+                intent = stripe.PaymentIntent.retrieve(intent_id)
+            except Exception:
+                raise serializers.ValidationError("查不到這筆 Stripe 付款。")
+            if intent.status != 'succeeded':
+                raise serializers.ValidationError("這筆 Stripe 付款尚未成功。")
+            # 金額（換算成分）與幣別都要和訂單相符，避免被竄改
+            if intent.amount != int(order.total_price * 100) or intent.currency != 'twd':
+                raise serializers.ValidationError("付款金額與訂單不符。")
+            success = True
+            transaction_id = intent.id
+        else:
+            # 模擬金流：一律回傳成功，給測試與 demo 用
+            success = True
+            transaction_id = f"mock_{uuid.uuid4().hex[:24]}"
+
         status = Payment.Status.SUCCESS if success else Payment.Status.FAILED
 
         with transaction.atomic():

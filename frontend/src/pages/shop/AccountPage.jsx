@@ -12,6 +12,8 @@ import {
 import { selectCurrentUser } from '../../features/auth/authSlice'
 import { STATUS_LABELS, STATUS_VARIANTS } from '../../utils/orderStatus'
 import { onlyDigits, validatePhone, validateAddress } from '../../utils/validators'
+import PaymentModal from '../../components/PaymentModal'
+import { formatPrice } from '../../utils/formatPrice'
 
 // ---- 個人資訊分頁：讀寫自己的電話、地址 ----
 function ProfileTab() {
@@ -110,19 +112,35 @@ function OrdersTab() {
   const { data, isLoading, isError } = useGetMyOrdersQuery()
   const orders = data?.results ?? []
 
+  // 目前正在付款的訂單（null = 沒開彈窗）；付款成功後顯示提示
+  const [payingOrder, setPayingOrder] = useState(null)
+  const [paidMsg, setPaidMsg] = useState('')
+
+  // 彈窗關閉：success=true 代表付款成功 → 顯示提示（RTK Query 已自動刷新訂單狀態）
+  const handleClose = (success) => {
+    setPayingOrder(null)
+    if (success) setPaidMsg('付款成功 ✅')
+  }
+
   if (isLoading) return <Spinner animation="border" />
   if (isError) return <Alert variant="danger">訂單載入失敗，請稍後再試。</Alert>
   if (orders.length === 0) {
     return (
       <Alert variant="secondary">
-        還沒有任何訂單。<Link to="/">去逛逛商品 →</Link>
+        還沒有任何訂單。<Link to="/shop">去逛逛商品 →</Link>
       </Alert>
     )
   }
 
   return (
-    // 不設 defaultActiveKey → 預設全部收合，點了才展開
-    <Accordion alwaysOpen>
+    <>
+      {paidMsg && (
+        <Alert variant="success" className="py-2" onClose={() => setPaidMsg('')} dismissible>
+          {paidMsg}
+        </Alert>
+      )}
+      {/* 不設 defaultActiveKey → 預設全部收合，點了才展開 */}
+      <Accordion alwaysOpen>
       {orders.map((order) => (
         <Accordion.Item eventKey={String(order.id)} key={order.id}>
           <Accordion.Header>
@@ -134,7 +152,7 @@ function OrdersTab() {
                 </span>
               </span>
               <span className="d-flex align-items-center gap-3">
-                <span className="fw-bold">${order.total_price}</span>
+                <span className="fw-bold">${formatPrice(order.total_price)}</span>
                 <Badge bg={STATUS_VARIANTS[order.status] ?? 'secondary'}>
                   {STATUS_LABELS[order.status] ?? order.status}
                 </Badge>
@@ -149,7 +167,7 @@ function OrdersTab() {
                     {item.product?.name ?? '（商品已移除）'}
                     <span className="text-muted small ms-2">× {item.quantity}</span>
                   </span>
-                  <span>${(Number(item.price) * item.quantity).toFixed(2)}</span>
+                  <span>${formatPrice(Number(item.price) * item.quantity)}</span>
                 </ListGroup.Item>
               ))}
             </ListGroup>
@@ -157,10 +175,20 @@ function OrdersTab() {
               收件人：{order.recipient_name}（{order.recipient_phone}）<br />
               寄送至：{order.shipping_address}
             </div>
+            {/* 只有「待付款」的訂單顯示付款入口 */}
+            {order.status === 'pending' && (
+              <div className="mt-3">
+                <Button variant="success" size="sm" onClick={() => setPayingOrder(order)}>
+                  💳 立即付款
+                </Button>
+              </div>
+            )}
           </Accordion.Body>
         </Accordion.Item>
       ))}
-    </Accordion>
+      </Accordion>
+      <PaymentModal show={!!payingOrder} order={payingOrder} onHide={handleClose} />
+    </>
   )
 }
 

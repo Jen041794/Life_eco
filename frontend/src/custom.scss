@@ -1,0 +1,118 @@
+// ===== Life_eco 主題色 =====
+// 想換主色，改下面這一個變數就好，會自動套到按鈕、連結、text-primary、Badge 等全站元件。
+$primary: #f26430; // 暖橘珊瑚（hover/active 會由 Bootstrap 自動加深，不用另外設）
+
+// 用 Bootstrap 的 SCSS 原始碼載入（這樣上面的變數覆蓋才會生效）
+@import "bootstrap/scss/bootstrap";
+
+// ===== 按鈕點擊回饋 =====
+// 按下去時輕微縮小、放開回彈，給使用者「有按到」的觸感。
+// 重新列出 Bootstrap 原本的 transition 並補上 transform，才不會蓋掉顏色過渡。
+.btn {
+  transition:
+    color 0.15s ease-in-out,
+    background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out,
+    box-shadow 0.15s ease-in-out,
+    transform 0.06s ease-in-out;
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+// ===== primary 按鈕一律白字 =====
+// 珊瑚橘對 Bootstrap 來說不夠深，預設會配深色字。這裡強制：
+// 實心 primary 的所有狀態都白字；outline-primary 平常維持橘字，hover/active 填滿時轉白字。
+.btn-primary {
+  --bs-btn-color: #fff;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-color: #fff;
+  --bs-btn-disabled-color: #fff;
+}
+.btn-outline-primary {
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-color: #fff;
+}
+
+// ===== 導覽列主選單 active 底線 =====
+// 預設放一條透明 2px 底線佔位，active 時換成主題色，避免文字上下位移。
+.shop-nav-link {
+  border-bottom: 2px solid transparent;
+}
+.shop-nav-link.active {
+  border-bottom-color: $primary;
+  font-weight: 700;
+}
+
+// ===== 精選商品橫向輪播 =====
+// 隱藏捲軸（保留可滑動 / 可用按鈕捲動），讓輪播看起來乾淨。
+.hide-scrollbar {
+  -ms-overflow-style: none; // IE / 舊 Edge
+  scrollbar-width: none; // Firefox
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; // Chrome / Safari
+}
+// 輪播卡片寬度：依螢幕「一次顯示幾張」（gap 為 1rem，N 張間有 N-1 個 gap）。
+// 手機露出約 1.2 張暗示可滑；桌機剛好 4 張、第 5 張在邊緣。
+// 手機（預設）：整張滿版，一次顯示 1 個。
+.featured-card {
+  flex: 0 0 auto;
+  width: 100%;
+  scroll-snap-align: start;
+}
+// 平板 / PC 的每張多 +2px 緩衝：吸收除不盡的小數誤差，確保「最後一張」
+// 完全被推出畫面、不會在邊緣露出一條線（要看下一張請用箭頭 / 滑動）。
+@media (min-width: 768px) {
+  .featured-card {
+    width: calc((100% - 2rem) / 3 + 2px); // 平板：3 張
+  }
+}
+@media (min-width: 992px) {
+  .featured-card {
+    width: calc((100% - 3rem) / 4 + 2px); // PC：4 張
+  }
+}
+
+// 左右箭頭：浮在輪播兩側、垂直置中的圓鈕
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 1.4rem;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+// 箭頭用 translateY(-50%) 置中，會被全站 .btn:active 的 scale 蓋掉而往下掉。
+// 這裡同時保留置中 + 縮放，按下去只會輕微縮小（互動回饋），不會位移。
+.carousel-arrow:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.92);
+}
+
+// ===== 商品卡片左上角 45 度斜絲帶（行銷標籤）=====
+// 外層容器需 position-relative + overflow-hidden 才能把絲帶兩端裁掉
+.corner-ribbon {
+  position: absolute;
+  top: 16px;
+  left: -40px;
+  width: 150px;
+  padding: 4px 0;
+  transform: rotate(-45deg);
+  text-align: center;
+  background: #f26430; // 預設色，實際由 inline style 依標籤覆蓋
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+  pointer-events: none; // 不擋點擊
+}

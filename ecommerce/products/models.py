@@ -15,6 +15,11 @@ class Category(models.Model):
 
 
 class Product(models.Model):
+    class Tag(models.TextChoices):
+        NEW = "新商品", "新商品"
+        LIMITED = "限量倒數", "限量倒數"
+        HOT = "熱賣", "熱賣"
+
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -25,6 +30,8 @@ class Product(models.Model):
     )
     # 上下架開關：False 代表下架，前台顧客看不到，但後台管理員仍可見
     is_active = models.BooleanField(default=True)
+    # 行銷標籤：空字串＝不顯示；有值時前台卡片左上角會出現斜絲帶
+    tag = models.CharField(max_length=20, blank=True, default="", choices=Tag.choices)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

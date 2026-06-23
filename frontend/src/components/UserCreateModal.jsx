@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { Modal, Form, Button, Alert } from 'react-bootstrap'
 import { useAdminCreateUserMutation } from '../features/api/apiSlice'
 import { formatApiError } from '../utils/formatError'
+import { useToast } from './ToastProvider'
 
 // 後台新增一般會員（後端固定建 is_staff=False）
 export default function UserCreateModal({ show, onHide }) {
   const [form, setForm] = useState({ username: '', email: '', password: '' })
   const [error, setError] = useState('')
   const [createUser, { isLoading }] = useAdminCreateUserMutation()
+  const { showToast } = useToast()
 
   useEffect(() => {
     if (show) {
@@ -23,6 +25,7 @@ export default function UserCreateModal({ show, onHide }) {
     setError('')
     try {
       await createUser(form).unwrap()
+      showToast(`${form.username} 新增成功`)
       onHide()
     } catch (err) {
       setError(formatApiError(err))
@@ -30,7 +33,7 @@ export default function UserCreateModal({ show, onHide }) {
   }
 
   return (
-    <Modal show={show} onHide={onHide} centered>
+    <Modal show={show} onHide={onHide} centered backdrop="static" keyboard={false}>
       <Form onSubmit={submit}>
         <Modal.Header closeButton>
           <Modal.Title>新增一般會員</Modal.Title>

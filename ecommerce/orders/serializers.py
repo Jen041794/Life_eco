@@ -46,9 +46,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['id', 'status', 'total_price', 'items',
+        fields = ['id', 'order_number', 'status', 'total_price', 'items',
                   'recipient_name', 'recipient_phone', 'shipping_address']
-        read_only_fields = ['status', 'total_price']
+        read_only_fields = ['status', 'total_price', 'order_number']
 
     def validate_items(self, items):
         if not items:
