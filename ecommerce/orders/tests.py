@@ -58,6 +58,28 @@ class OrderAPITests(APITestCase):
         self.assertEqual(self.p1.stock, 8)
         self.assertEqual(self.p2.stock, 4)
 
+    def test_price_snapshot_unaffected_by_later_price_change(self):
+        """下單價格是「快照」：訂單成立後商品再漲價，已成立的舊訂單金額不受影響。
+        對應 TEST_CASES.md 的 ORD-08，是我面試最想講的亮點之一。"""
+        self.client.force_authenticate(self.user_a)
+        res = self.client.post(
+            "/api/orders/",
+            self._order_payload([{"product": self.p1.id, "quantity": 2}]),
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        order_id = res.data["id"]
+        self.assertEqual(Decimal(res.data["total_price"]), Decimal("200.00"))  # 100*2
+
+        # 商品事後漲價到 999
+        self.p1.price = Decimal("999.00")
+        self.p1.save()
+
+        # 舊訂單的總價與品項單價都要維持下單當下的 100，不能跟著漲
+        detail = self.client.get(f"/api/orders/{order_id}/")
+        self.assertEqual(Decimal(detail.data["total_price"]), Decimal("200.00"))
+        self.assertEqual(Decimal(detail.data["items"][0]["price"]), Decimal("100.00"))
+
     def test_empty_items_rejected(self):
         self.client.force_authenticate(self.user_a)
         res = self.client.post("/api/orders/", self._order_payload([]), format="json")

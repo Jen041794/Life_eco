@@ -57,7 +57,7 @@
 | 資料庫 | MySQL（本機開發）／ PostgreSQL（正式環境，Supabase） |
 | API 文件 | drf-yasg（Swagger / ReDoc） |
 | 前端 | React、Vite、React Router、Redux Toolkit + RTK Query、Bootstrap |
-| 測試 | Django `APITestCase`（58 個測試） |
+| 測試 | Django `APITestCase`（101 個自動化測試） |
 | 部署 | 前端 Vercel、後端 Render（gunicorn + WhiteNoise）、資料庫 Supabase |
 
 ---
@@ -126,12 +126,27 @@ npm run dev                      # http://localhost:5173
 
 ## 🧪 測試
 
+以「風險導向 + 分層」設計測試：每個 API 都涵蓋**正向、負向、邊界、權限**四種情境，並把測試重心放在有商業邏輯的地方（金流、庫存、交易一致性）。目前共 **101 個自動化測試**（Django `APITestCase`），全數通過。
+
 ```bash
 cd ecommerce
-python manage.py test
+# 用測試專用設定：in-memory SQLite，與正式資料庫隔離、不需啟動 MySQL，約 0.7 秒跑完
+python manage.py test --settings=ecommerce.test_settings
 ```
 
-涵蓋權限邊界（匿名 / 一般會員 / 管理員）、訂單庫存回滾、越權存取、密碼保護、狀態流轉、圖片上傳上限等。
+📋 完整測試案例設計（含前置條件、步驟、預期結果）整理於 **[TEST_CASES.md](./TEST_CASES.md)**。
+
+### 幾個代表性案例
+
+| 測試重點 | 情境 | 驗證什麼 |
+|----------|------|----------|
+| 交易一致性 | 多品項訂單中某項庫存不足 | 回 400 且**整筆回滾**——已扣的庫存還原、不留半成品訂單，避免超賣 |
+| 價格快照 | 訂單成立後商品再漲價 | 舊訂單的總價與品項單價維持下單當下的值，不受影響 |
+| 越權存取 | 使用者查別人的訂單 | 回傳 **404 而非 403**，不洩漏「該資源是否存在」 |
+| 信任邊界 | Stripe 付款金額被前端竄改 | 後端回頭向 Stripe 查證金額與幣別，不符則擋下、訂單維持未付款 |
+| 自我鎖定防護 | 管理員嘗試停用自己的帳號 | 兩個入口（停用 API、編輯會員）都擋下，避免把自己鎖在門外 |
+
+> 測試環境使用 in-memory SQLite 而非正式資料庫，確保測試快速、可重複、且不影響任何真實資料。
 
 ## 📖 API 文件
 

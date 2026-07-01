@@ -1,3 +1,5 @@
+> ⚠️ 這份已過時，請改看 [`TEST_CASES.md`](./TEST_CASES.md)（已補上收件資訊必填、訂單狀態流轉、取消/退款、Stripe 驗證、會員停用等）。此檔保留作歷史參考。
+
 # Life_eco API 測試清單
 
 > 測試方式：啟動 server 後打開 `http://127.0.0.1:8000/swagger/`，多數操作直接在 Swagger UI 點。
